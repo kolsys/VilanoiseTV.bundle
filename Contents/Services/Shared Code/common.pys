@@ -61,7 +61,7 @@ def GetChannels(cached={}):
         else:
             info = GetChannel(item['URI'])
             if info:
-                ret.append(GetVideoObject(item['URI'], info, ch_id))
+                ret.append(GetChannelObject(item['URI'], info, ch_id))
 
     return ret
 
@@ -86,6 +86,7 @@ def GetVideoInfo(uri):
 
 def GetVideoUrl(uri, quality):
     info = ApiRequest(uri, 'quality='+quality.lower())
+
     if info:
         return info['video_url']
 
@@ -128,12 +129,10 @@ def ApiRequest(uri, params=None):
         )
     }
 
-    Log.Debug(headers)
-
-    # try:
-    return JSON.ObjectFromURL(uri, headers=headers)['response']
-    # except:
-    #     return None
+    try:
+        return JSON.ObjectFromURL(uri, headers=headers)['response']
+    except:
+        return None
 
 
 def GetVideoObject(item):
