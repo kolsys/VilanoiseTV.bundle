@@ -1,4 +1,4 @@
-Plex Media Server VilanoiseTV video plugin
+VilanoiseTV Plex Plugin
 =====
 
 Vilanoise TV is an online music TV, multi-channel distributed by style.
