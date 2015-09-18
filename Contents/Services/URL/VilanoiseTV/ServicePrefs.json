@@ -1,0 +1,9 @@
+[
+    {
+        "id": "video_quality",
+        "type": "enum",
+        "label": "Video quality",
+        "values": ["SD", "HD", "Mobile"],
+        "default": "SD",
+    }
+]

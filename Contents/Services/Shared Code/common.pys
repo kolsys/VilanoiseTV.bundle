@@ -1,0 +1,169 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2014, KOL
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the <organization> nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTLICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+from time import time
+
+PREFIX = '/video/vilanoise'
+
+VN_API = 'http://api.vilanoise.tv/'
+VN_USER = 'vilanoise'
+VN_KEY = '9203CC26DD54F447D28CA0D10DC45AB07A779AF395EA7AC37E36C8065809F198'
+
+KEY_CACHE = 'channels'
+
+DEFINITIONS = {
+    'SD': 360,
+    'HD': 720,
+    'Mobile': 270,
+}
+
+ICON = 'icon-default.png'
+TITLE = 'Title'
+
+
+def GetChannels(cached={}):
+    ch_list = ApiRequest(VN_API+'channels/')
+    if not ch_list:
+        return None
+
+    ret = []
+
+    for item in ch_list['channels']:
+        ch_id = GetIdFromUri(item['URI'])
+
+        if ch_id in cached:
+            ret.append(cached[ch_id])
+        else:
+            info = GetChannel(item['URI'])
+            if info:
+                ret.append(GetVideoObject(item['URI'], info, ch_id))
+
+    return ret
+
+
+def GetChannel(uri):
+    info = ApiRequest(uri)
+    if (info and info['channel']['videos']
+            and info['channel']['videos'][0]['track_name']):
+        return info['channel']
+
+    return None
+
+
+def GetVideoInfo(uri):
+    video_id = GetIdFromUri(uri)
+    info = ApiRequest(VN_API+'videoinfo/'+video_id)
+    if info:
+        return info['videoinfo']['video']
+
+    return None
+
+
+def GetVideoUrl(uri, quality):
+    info = ApiRequest(uri, 'quality='+quality.lower())
+    if info:
+        return info['video_url']
+
+    return None
+
+
+def GetChannelObject(uri, info, ch_id=None):
+    if ch_id is None:
+        ch_id = GetIdFromUri(uri)
+
+    return {
+        'id': ch_id,
+        'title': info['name'],
+        'thumb': info['logo'],
+        'URI': uri,
+    }
+
+
+def GetIdFromUri(uri):
+    return uri[uri.rfind('/')+1:]
+
+
+def ApiRequest(uri, params=None):
+    uri = uri+'?format=json'
+    if not params is None:
+        uri = uri+'&'+params
+
+    nonce = str(time())
+    timestamp = Datetime.Now().strftime('%Y-%m-%dT%H:%M:%S%z')
+    headers = {
+        'Authorization': 'WSSE profile="UsernameToken"',
+        'X-WSSE': (
+            'UsernameToken Username="%s", PasswordDigest="%s", '
+            'Nonce="%s", Created="%s"'
+        ) % (
+            VN_USER,
+            String.Base64Encode(Hash.SHA1(nonce+timestamp+VN_KEY, True)),
+            nonce,
+            timestamp
+        )
+    }
+
+    Log.Debug(headers)
+
+    # try:
+    return JSON.ObjectFromURL(uri, headers=headers)['response']
+    # except:
+    #     return None
+
+
+def GetVideoObject(item):
+
+    url = MetaUrl(item['URI'])
+    url.update(item)
+
+    return URLService.MetadataObjectForURL(url)
+
+
+def InitMetaUrl(url):
+
+    try:
+        # has attribute crutch
+        if url.item:
+            return url
+    except:
+        url = MetaUrl(url)
+        info = GetVideoInfo(url)
+        if info:
+            url.update(info)
+            return url
+
+    raise Ex.MediaNotAvailable
+
+
+class MetaUrl(str):
+    item = None
+    episode = None
+
+    def update(self, item):
+        self.item = item
+        return self
